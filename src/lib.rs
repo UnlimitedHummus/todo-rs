@@ -3,15 +3,14 @@ use std::result::Result;
 
 #[derive(Debug)]
 pub enum Error {
-    FileExists
+    FileExists,
 }
 
 pub fn create(path: &std::path::Path) -> Result<(), Error> {
     let file_path = path.join(".todo.toml");
     if file_path.exists() {
         Err(Error::FileExists)
-    }
-    else{
+    } else {
         File::create(path.join(".todo.toml")).expect("File could not be created");
         Ok(())
     }
@@ -20,10 +19,10 @@ pub fn create(path: &std::path::Path) -> Result<(), Error> {
 #[cfg(test)]
 mod test {
     use crate::create;
-    use std::path::Path;
-    use std::io::{Read, Write};
-    use std::fs::File;
     use assert_fs::fixture::TempDir;
+    use std::fs::File;
+    use std::io::{Read, Write};
+    use std::path::Path;
 
     #[test]
     fn test_create_function_creates_a_new_file() {
@@ -53,5 +52,4 @@ mod test {
         let file_content = std::fs::read_to_string(file_path).unwrap();
         assert_eq!(file_content, "foo");
     }
-        
 }

@@ -1,5 +1,6 @@
 use clap::Parser;
 use clap::Subcommand;
+use std::path::Path;
 use todo_rs::create;
 
 /// Simple todo lists
@@ -20,5 +21,6 @@ enum Commands {
 fn main() {
     let args = Args::parse();
 
+    create(Path::new("."));
     println!("created a new .todo.toml file")
 }

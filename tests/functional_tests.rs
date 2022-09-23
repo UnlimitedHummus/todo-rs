@@ -9,7 +9,9 @@ fn test_program_fails_when_no_arguments_are_passed() {
     // He doesn't know how to use the program yet and is displayed a help
     // menu, because he just typed `todo`
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
-    cmd.assert().failure().code(2)
+    cmd.assert()
+        .failure()
+        .code(2)
         .stderr(predicate::str::contains("help"));
 }
 
@@ -27,6 +29,11 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
 
     // Mark uses the todo program to manage tasks for his project.
     // By running todo add "Refactor code" he adds an item to the todo list
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("add").arg("Refactor code");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Added: Refactor code"));
 
     // Immediately, he decides to view the current state of the todo list
     // by running `todo list`. Which shows him the item he added
