@@ -55,12 +55,33 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
         .failure()
         .stderr(predicate::str::contains("Warning: \".todo.toml\" already exists. Doing nothing"));
 
+
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("1"))
+        .stdout(predicate::str::contains("[ ] Refactor code"));
+
     // He wants to also add a second item to his todo list "Drink a coffe
     // with Greg"
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("add")
+        .arg("Drink a coffee with Greg");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Added: Drink a coffee with Greg"));
 
     // He has another look at the todo list, which now shows him both items
     // They are numbered in the order they were added, which makes sense
     // to Mark
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("1 [ ] Refactor code"))
+        .stdout(predicate::str::contains("2 [ ] Drink a coffee with Greg"));
+
 
     // Mark completes his refacoring and checks of the item on the todo list
     // with `todo check 1`
@@ -70,17 +91,39 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
     //
     // assert ... "[x]" in output
     // assert ... "Refactor code" in output
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("check").arg("1");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("[x] Refactor code"));
 
     // When displaying the list again, the item that was checked is displayed
     // at the bottom, separated by a blank line. It can also be seen, that it's
     // done by the [x] accompanying it.
     // // in color terminals it could even be a different color later on
     // Drinking coffee with Greg is now item number 1
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("1 [ ] Drink a coffee with Greg\n\n2 [x] Refactor code"));
 
     // Mark notices, that having a coffe meetup in his project's todo list
     // is a bit inappropriate, when after all he wants to show his boss this
     // nice, new todo utility program, that he found.
     // He decides to remove it from the list (`todo remove 1`)
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("remove").arg("1");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Removed: [x] Drink a coffe with Greg"));
+
+    // The todo list doesn't list the item anymore
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("1 [x] Refactor code"));
 
     // He decides, that he doesn't want the todo list after all.
     // Mark runs `todo destroy` and all list items are deleted along with the
