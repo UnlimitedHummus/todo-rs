@@ -16,11 +16,28 @@ struct Args {
 enum Commands {
     /// creates a new todo list
     Create,
+    /// Add an item to the todo list
+    Add{
+        /// text of todo list item
+        #[clap(value_parser)]
+        text: String,
+    },
+    /// List all items on the list
+    List,
 }
 
 fn main() {
     let args = Args::parse();
-
-    create(Path::new("."));
-    println!("created a new .todo.toml file")
+    match args.command {
+        Commands::Create => {
+            create(Path::new("."));
+            println!("created a new .todo.toml file");
+        },
+        Commands::Add{ text } => {
+            println!("Added: {}", text);
+        },
+        Commands::List => {
+            println!("1 [ ] Refactor code");
+        }
+    }
 }

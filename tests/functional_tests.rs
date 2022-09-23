@@ -37,9 +37,23 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
 
     // Immediately, he decides to view the current state of the todo list
     // by running `todo list`. Which shows him the item he added
-
-    // assert ... "[ ] Refactor code";
-    // assert ... 1 in output;
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("list");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("1"))
+        .stdout(predicate::str::contains("[ ] Refactor code"));
+    
+    
+    // Mark accidentally runs the create command again
+    // The program tells him, that there already is a .todo.toml file present
+    // Mark runs todo list again to make sure, that all of his items are still
+    // there
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("create");
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Warning: \".todo.toml\" already exists. Doing nothing"));
 
     // He wants to also add a second item to his todo list "Drink a coffe
     // with Greg"
