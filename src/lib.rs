@@ -21,14 +21,14 @@ mod test {
     use crate::create;
     use assert_fs::fixture::TempDir;
     use std::fs::File;
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::path::Path;
 
     #[test]
     fn test_create_function_creates_a_new_file() {
         let temp_dir = TempDir::new().unwrap();
 
-        create(temp_dir.path());
+        create(temp_dir.path()).unwrap();
 
         assert!(temp_dir.path().join(Path::new(".todo.toml")).exists());
 
