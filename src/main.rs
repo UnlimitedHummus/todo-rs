@@ -30,8 +30,11 @@ fn main() {
     let args = Args::parse();
     match args.command {
         Commands::Create => {
-            create(Path::new("."));
-            println!("created a new .todo.toml file");
+            match create(Path::new(".")) {
+            Ok(_) => println!("created a new .todo.toml file"),
+            Err(_) => println!("Warning: \".todo.toml\" already exists. Quitting") 
+            }
+
         },
         Commands::Add{ text } => {
             println!("Added: {}", text);
