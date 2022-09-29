@@ -1,9 +1,40 @@
 use std::fs::File;
 use std::result::Result;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub enum Error {
     FileExists,
+}
+
+#[derive(Debug, PartialEq)]
+struct Task {
+    text: String,
+    status: Status,
+}
+
+#[derive(PartialEq, Debug)]
+enum Status {
+    Unfinished,
+    Finished,
+}
+
+#[derive(Debug)]
+struct ParseError;
+
+impl FromStr for Task {
+    type Err = ParseError;
+
+    fn from_str(input: &str) -> Result<Self, <Self as FromStr>::Err> {
+       let status = match &input[0..3] {
+           "[ ]" => Status::Unfinished,
+           "[x]" => Status::Finished,
+           _ => return Err(ParseError)
+       };
+       let text = &input[4..input.len()];
+
+       Ok(Task{text: text.to_string(), status})
+    }
 }
 
 pub fn create(path: &std::path::Path) -> Result<(), Error> {
@@ -18,7 +49,7 @@ pub fn create(path: &std::path::Path) -> Result<(), Error> {
 
 #[cfg(test)]
 mod test {
-    use crate::create;
+    use crate::{create, Status, Task};
     use assert_fs::fixture::TempDir;
     use std::fs::File;
     use std::io::Write;
@@ -51,5 +82,35 @@ mod test {
         // file contents should not be altered
         let file_content = std::fs::read_to_string(file_path).unwrap();
         assert_eq!(file_content, "foo");
+    }
+
+    #[test]
+    fn test_parse_unfinished_task() {
+        let task = "[ ] Make things work"
+            .parse::<Task>()
+            .expect("parsing failed");
+
+        assert_eq!(
+            Task {
+                text: "Make things work".to_string(),
+                status: Status::Unfinished
+            },
+            task
+        );
+    }
+
+    #[test]
+    fn test_parse_finished_task() {
+        let task = "[x] Nothing special"
+            .parse::<Task>()
+            .expect("parsing failed");
+
+        assert_eq!(
+            Task {
+                text: "Nothing special".to_string(),
+                status: Status::Finished
+            },
+            task
+        );
     }
 }
