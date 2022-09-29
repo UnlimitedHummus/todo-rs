@@ -1,7 +1,8 @@
-// use assert_cmd::prelude::*;
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::path::Path;
+use assert_fs::fixture::TempDir;
+use std::env;
 
 #[test]
 fn test_program_fails_when_no_arguments_are_passed() {
@@ -17,6 +18,9 @@ fn test_program_fails_when_no_arguments_are_passed() {
 
 #[test]
 fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
+    // // change to a blank directory to have no side effects
+    let temp_dir = TempDir::new().unwrap();
+    env::set_current_dir(temp_dir.path()).unwrap();
     // Mark wants to create a new todo list in the current folder
     // He runs `todo create` to make a new todo list in the current folder
     // This creates a .todo.toml file in the current folder
@@ -52,8 +56,8 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
     cmd.arg("create");
     cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("Warning: \".todo.toml\" already exists. Doing nothing"));
+        .success()
+        .stdout(predicate::str::contains("Warning: \".todo.toml\" already exists. Quitting"));
 
 
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
