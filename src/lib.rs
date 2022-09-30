@@ -1,5 +1,7 @@
 use std::fmt;
 use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::result::Result;
 use std::str::FromStr;
 
@@ -53,7 +55,7 @@ impl FromStr for Task {
 
 impl fmt::Display for Task {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.status.to_string(), self.text)
+        write!(f, "{} {}", self.status, self.text)
     }
 }
 
@@ -67,11 +69,18 @@ pub fn create(path: &std::path::Path) -> Result<(), Error> {
     }
 }
 
+pub fn add(file_path: &std::path::Path, text: &str) {
+    let mut file = OpenOptions::new().append(true).open(file_path).unwrap();
+    file.write_all(b"[ ] ").unwrap();
+    file.write_all(text.as_bytes()).unwrap();
+}
+
 #[cfg(test)]
 mod test {
-    use crate::{create, Status, Task};
+    use crate::{add, create, Status, Task};
     use assert_fs::fixture::TempDir;
-    use std::fs::File;
+    use assert_fs::fixture::{FileTouch, NamedTempFile};
+    use std::fs::{read_to_string, File};
     use std::io::Write;
     use std::path::Path;
 
@@ -152,5 +161,20 @@ mod test {
         };
 
         assert_eq!("[ ] Get coffee", task.to_string());
+    }
+
+    #[test]
+    fn test_add_appends_text_to_file() {
+        let temp_file = NamedTempFile::new(".todo.toml").unwrap();
+        let text = "New todo entry".to_string();
+        temp_file.touch().unwrap();
+
+        add(temp_file.path(), &text);
+
+        assert_eq!(
+            read_to_string(temp_file.path()).unwrap(),
+            "[ ] New todo entry".to_string()
+        );
+        temp_file.close().unwrap();
     }
 }
