@@ -123,6 +123,7 @@ impl TaskList {
             .map(|x| x.to_string())
             .collect::<Vec<String>>()
             .join("\n")
+            + "\n"
     }
 
     fn check(&mut self, task_index: usize) -> Result<Task, crate::Error> {
@@ -414,7 +415,7 @@ mod test {
     #[test]
     fn test_to_string_unordered() {
         let tasks = "[ ] Task 1\n[x] Task 2".parse::<TaskList>().unwrap();
-        assert_eq!(tasks.to_string_unordered(), "[ ] Task 1\n[x] Task 2");
+        assert_eq!(tasks.to_string_unordered(), "[ ] Task 1\n[x] Task 2\n");
     }
 
     #[test]
@@ -422,7 +423,7 @@ mod test {
         let mut tasks = "[ ] Task 1\n[x] Task 2".parse::<TaskList>().unwrap();
 
         let task = tasks.check(1).unwrap();
-        assert_eq!("[x] Task 1\n[x] Task 2", tasks.to_string_unordered());
+        assert_eq!("[x] Task 1\n[x] Task 2\n", tasks.to_string_unordered());
         assert_eq!(
             Task {
                 text: "Task 1".to_string(),
