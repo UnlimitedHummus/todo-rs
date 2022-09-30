@@ -2,13 +2,14 @@ use std::fmt;
 use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::{Write};
+use std::io::Write;
 use std::result::Result;
 use std::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     FileExists,
+    IndexOutOfBounds,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -40,8 +41,12 @@ impl Task {
     fn is_finished(&self) -> bool {
         match self.status {
             Status::Finished => true,
-            Status::Unfinished => false
+            Status::Unfinished => false,
         }
+    }
+
+    fn check(&mut self) {
+        self.status = Status::Finished;
     }
 }
 
@@ -71,33 +76,63 @@ impl fmt::Display for Task {
 
 #[derive(PartialEq, Debug)]
 struct TaskList {
-    tasks: Vec::<Task>,
+    tasks: Vec<Task>,
 }
 
 impl FromStr for TaskList {
     type Err = ParseError;
 
     fn from_str(input: &str) -> Result<Self, <Self as FromStr>::Err> {
-        let tasks = input.lines().map(|line| line.parse::<Task>().unwrap()).collect();
-        Ok(TaskList{tasks})
+        let tasks = input
+            .lines()
+            .map(|line| line.parse::<Task>().unwrap())
+            .collect();
+        Ok(TaskList { tasks })
     }
 }
 
 impl TaskList {
     fn new() -> Self {
-        TaskList{ tasks: vec![] }
+        TaskList { tasks: vec![] }
     }
 
     fn add(&mut self, new_task: Task) {
         self.tasks.push(new_task);
     }
 
-    fn finished_tasks(& self) -> Vec::<Task> {
-        self.tasks.iter().filter(|x| x.is_finished()).map(|x| x.to_owned()).collect()
+    // TODO: replace with a filter function to filter for status
+    fn finished_tasks(&self) -> Vec<Task> {
+        self.tasks
+            .iter()
+            .filter(|x| x.is_finished())
+            .map(|x| x.to_owned())
+            .collect()
     }
 
-    fn unfinished_tasks(& self) -> Vec::<Task> {
-        self.tasks.iter().filter(|x| !x.is_finished()).map(|x| x.to_owned()).collect()
+    fn unfinished_tasks(&self) -> Vec<Task> {
+        self.tasks
+            .iter()
+            .filter(|x| !x.is_finished())
+            .map(|x| x.to_owned())
+            .collect()
+    }
+
+    fn to_string_unordered(&self) -> String {
+        self.tasks
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
+    fn check(&mut self, task_index: usize) -> Result<Task, crate::Error> {
+        let task = self
+            .tasks
+            .get_mut(task_index - 1)
+            .ok_or(crate::Error::IndexOutOfBounds)?;
+        // TODO: there is no test for the error case yet
+        task.check();
+        Ok(task.to_owned())
     }
 }
 
@@ -108,7 +143,7 @@ impl fmt::Display for TaskList {
             writeln!(f, "{} {}", counter, unfinished_task)?;
             counter += 1;
         }
-        writeln!(f,"")?;
+        writeln!(f, "")?;
         for finished_task in self.finished_tasks().iter() {
             writeln!(f, "{} {}", counter, finished_task)?;
             counter += 1;
@@ -127,7 +162,7 @@ pub fn create(path: &std::path::Path) -> Result<(), Error> {
     }
 }
 
-pub fn list(file_path: &std::path::Path, writer: &mut impl std::io::Write){
+pub fn list(file_path: &std::path::Path, writer: &mut impl std::io::Write) {
     let file_content = fs::read_to_string(file_path).expect("Couldn't read file contents");
     let task_list = file_content.parse::<TaskList>().unwrap();
     write!(writer, "{}", task_list).expect(&format!("Error parsing file {}", file_path.display()));
@@ -138,6 +173,15 @@ pub fn add(file_path: &std::path::Path, text: &str) {
     file.write_all(b"[ ] ").unwrap();
     file.write_all(text.as_bytes()).unwrap();
     file.write_all(b"\n").unwrap();
+}
+
+pub fn check(file_path: &std::path::Path, item_index: usize, writer: &mut impl std::io::Write) {
+    let file_content = fs::read_to_string(file_path).expect("Couldn't read file contents"); // TODO: make these two lines their own function
+    let mut task_list = file_content.parse::<TaskList>().unwrap();
+    let checked_task = task_list.check(item_index).unwrap();
+    fs::write(file_path, task_list.to_string_unordered()).unwrap();
+    writeln!(writer, "{}", checked_task).unwrap();
+    // TODO: maybe use mark or toggle instead of check
 }
 
 #[cfg(test)]
@@ -264,26 +308,43 @@ mod test {
     #[test]
     fn test_parse_and_display_a_list_of_tasks() {
         let mut tasks = TaskList::new();
-        let task1 = Task{text: "Do this task first".to_string(), status: Status::Finished };
-        let task2 = Task{text: "Then do this task".to_string(), status: Status::Unfinished };
-        let task3 = Task{text: "Finally do this task".to_string(), status: Status::Unfinished };
+        let task1 = Task {
+            text: "Do this task first".to_string(),
+            status: Status::Finished,
+        };
+        let task2 = Task {
+            text: "Then do this task".to_string(),
+            status: Status::Unfinished,
+        };
+        let task3 = Task {
+            text: "Finally do this task".to_string(),
+            status: Status::Unfinished,
+        };
         tasks.add(task1);
         tasks.add(task2);
         tasks.add(task3);
 
-        assert_eq!(r"1 [ ] Then do this task
+        assert_eq!(
+            r"1 [ ] Then do this task
 2 [ ] Finally do this task
 
 3 [x] Do this task first
 ",
-            tasks.to_string());
+            tasks.to_string()
+        );
     }
 
     #[test]
     fn test_task_list_finished() {
         let mut tasks = TaskList::new();
-        let task1 = Task{text: "Do this task first".to_string(), status: Status::Finished };
-        let task2 = Task{text: "Then do this task".to_string(), status: Status::Unfinished };
+        let task1 = Task {
+            text: "Do this task first".to_string(),
+            status: Status::Finished,
+        };
+        let task2 = Task {
+            text: "Then do this task".to_string(),
+            status: Status::Unfinished,
+        };
         tasks.add(task1.clone());
         tasks.add(task2.clone());
 
@@ -292,19 +353,30 @@ mod test {
 
     #[test]
     fn test_is_finished() {
-        let task1 = Task{text: "Do this task first".to_string(), status: Status::Finished };
-        let task2 = Task{text: "Then do this task".to_string(), status: Status::Unfinished };
+        let task1 = Task {
+            text: "Do this task first".to_string(),
+            status: Status::Finished,
+        };
+        let task2 = Task {
+            text: "Then do this task".to_string(),
+            status: Status::Unfinished,
+        };
 
         assert!(task1.is_finished());
         assert!(!task2.is_finished());
     }
 
-
     #[test]
     fn test_task_list_unfinished() {
         let mut tasks = TaskList::new();
-        let task1 = Task{text: "Do this task first".to_string(), status: Status::Finished };
-        let task2 = Task{text: "Then do this task".to_string(), status: Status::Unfinished };
+        let task1 = Task {
+            text: "Do this task first".to_string(),
+            status: Status::Finished,
+        };
+        let task2 = Task {
+            text: "Then do this task".to_string(),
+            status: Status::Unfinished,
+        };
         tasks.add(task1.clone());
         tasks.add(task2.clone());
 
@@ -320,7 +392,10 @@ mod test {
 
         list(&file_path, &mut writer);
 
-        assert_eq!("1 [ ] Not done yet\n\n2 [x] Already done\n", String::from_utf8(writer).unwrap());
+        assert_eq!(
+            "1 [ ] Not done yet\n\n2 [x] Already done\n",
+            String::from_utf8(writer).unwrap()
+        );
     }
 
     #[test]
@@ -331,7 +406,36 @@ mod test {
         let mut expected_tasks = TaskList::new();
         expected_tasks.add(task1);
         expected_tasks.add(task2);
-        
+
         assert_eq!(expected_tasks, tasks);
+    }
+
+    #[test]
+    fn test_to_string_unordered() {
+        let tasks = "[ ] Task 1\n[x] Task 2".parse::<TaskList>().unwrap();
+        assert_eq!(tasks.to_string_unordered(), "[ ] Task 1\n[x] Task 2");
+    }
+
+    #[test]
+    fn test_check_marks_task_and_returns_task() {
+        let mut tasks = "[ ] Task 1\n[x] Task 2".parse::<TaskList>().unwrap();
+
+        let task = tasks.check(1).unwrap();
+        assert_eq!("[x] Task 1\n[x] Task 2", tasks.to_string_unordered());
+        assert_eq!(
+            Task {
+                text: "Task 1".to_string(),
+                status: Status::Finished
+            },
+            task
+        );
+    }
+    // TODO: make unmarking also possible
+
+    #[test]
+    fn test_check_returns_out_of_bounds_error() {
+        let mut tasks = "[ ] Task 1\n[x] Task 2".parse::<TaskList>().unwrap();
+        let result = tasks.check(5);
+        assert_eq!(Err(Error::IndexOutOfBounds), result);
     }
 }
