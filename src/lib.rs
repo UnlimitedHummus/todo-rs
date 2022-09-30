@@ -143,7 +143,7 @@ impl fmt::Display for TaskList {
             writeln!(f, "{} {}", counter, unfinished_task)?;
             counter += 1;
         }
-        writeln!(f, "")?;
+        writeln!(f)?;
         for finished_task in self.finished_tasks().iter() {
             writeln!(f, "{} {}", counter, finished_task)?;
             counter += 1;
@@ -165,7 +165,8 @@ pub fn create(path: &std::path::Path) -> Result<(), Error> {
 pub fn list(file_path: &std::path::Path, writer: &mut impl std::io::Write) {
     let file_content = fs::read_to_string(file_path).expect("Couldn't read file contents");
     let task_list = file_content.parse::<TaskList>().unwrap();
-    write!(writer, "{}", task_list).expect(&format!("Error parsing file {}", file_path.display()));
+    write!(writer, "{}", task_list)
+        .unwrap_or_else(|_| panic!("Error parsing file {}", file_path.display()));
 }
 
 pub fn add(file_path: &std::path::Path, text: &str) {
