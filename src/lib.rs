@@ -73,6 +73,7 @@ pub fn add(file_path: &std::path::Path, text: &str) {
     let mut file = OpenOptions::new().append(true).open(file_path).unwrap();
     file.write_all(b"[ ] ").unwrap();
     file.write_all(text.as_bytes()).unwrap();
+    file.write_all(b"\n").unwrap();
 }
 
 #[cfg(test)]
@@ -164,7 +165,7 @@ mod test {
     }
 
     #[test]
-    fn test_add_appends_text_to_file() {
+    fn test_add_writes_to_file() {
         let temp_file = NamedTempFile::new(".todo.toml").unwrap();
         let text = "New todo entry".to_string();
         temp_file.touch().unwrap();
@@ -173,8 +174,28 @@ mod test {
 
         assert_eq!(
             read_to_string(temp_file.path()).unwrap(),
-            "[ ] New todo entry".to_string()
+            "[ ] New todo entry\n".to_string()
         );
         temp_file.close().unwrap();
     }
+
+    #[test]
+    fn test_add_appends_text_to_file() {
+        let temp_file = NamedTempFile::new(".todo.toml").unwrap();
+        let text = "New todo entry".to_string();
+        temp_file.touch().unwrap();
+        {
+            let mut f = File::options().write(true).open(temp_file.path()).unwrap();
+            f.write(b"[x] Old todo entry\n").unwrap();
+        }
+
+        add(temp_file.path(), &text);
+
+        assert_eq!(
+            read_to_string(temp_file.path()).unwrap(),
+            "[x] Old todo entry\n[ ] New todo entry\n".to_string()
+        );
+        temp_file.close().unwrap();
+    }
+
 }
