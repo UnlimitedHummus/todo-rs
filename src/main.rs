@@ -1,7 +1,7 @@
 use clap::Parser;
 use clap::Subcommand;
 use std::path::Path;
-use todo_rs::create;
+use todo_rs::{create, add, list};
 
 /// Simple todo lists
 #[derive(Parser, Debug)]
@@ -37,10 +37,11 @@ fn main() {
 
         },
         Commands::Add{ text } => {
+            add(Path::new(".todo.toml"), &text);
             println!("Added: {}", text);
         },
         Commands::List => {
-            println!("1 [ ] Refactor code");
+            list(Path::new(".todo.toml"), &mut std::io::stdout());
         }
     }
 }

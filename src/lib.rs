@@ -1,7 +1,8 @@
 use std::fmt;
+use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{Write};
 use std::result::Result;
 use std::str::FromStr;
 
@@ -10,13 +11,13 @@ pub enum Error {
     FileExists,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Task {
     text: String,
     status: Status,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 enum Status {
     Unfinished,
     Finished,
@@ -34,6 +35,15 @@ impl fmt::Display for Status {
 
 #[derive(Debug)]
 struct ParseError;
+
+impl Task {
+    fn is_finished(&self) -> bool {
+        match self.status {
+            Status::Finished => true,
+            Status::Unfinished => false
+        }
+    }
+}
 
 impl FromStr for Task {
     type Err = ParseError;
@@ -59,6 +69,54 @@ impl fmt::Display for Task {
     }
 }
 
+#[derive(PartialEq, Debug)]
+struct TaskList {
+    tasks: Vec::<Task>,
+}
+
+impl FromStr for TaskList {
+    type Err = ParseError;
+
+    fn from_str(input: &str) -> Result<Self, <Self as FromStr>::Err> {
+        let tasks = input.lines().map(|line| line.parse::<Task>().unwrap()).collect();
+        Ok(TaskList{tasks})
+    }
+}
+
+impl TaskList {
+    fn new() -> Self {
+        TaskList{ tasks: vec![] }
+    }
+
+    fn add(&mut self, new_task: Task) {
+        self.tasks.push(new_task);
+    }
+
+    fn finished_tasks(& self) -> Vec::<Task> {
+        self.tasks.iter().filter(|x| x.is_finished()).map(|x| x.to_owned()).collect()
+    }
+
+    fn unfinished_tasks(& self) -> Vec::<Task> {
+        self.tasks.iter().filter(|x| !x.is_finished()).map(|x| x.to_owned()).collect()
+    }
+}
+
+impl fmt::Display for TaskList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut counter = 1;
+        for unfinished_task in self.unfinished_tasks().iter() {
+            writeln!(f, "{} {}", counter, unfinished_task)?;
+            counter += 1;
+        }
+        writeln!(f,"")?;
+        for finished_task in self.finished_tasks().iter() {
+            writeln!(f, "{} {}", counter, finished_task)?;
+            counter += 1;
+        }
+        Ok(()) // TODO: can I remove the loops in favor of iterators
+    }
+}
+
 pub fn create(path: &std::path::Path) -> Result<(), Error> {
     let file_path = path.join(".todo.toml");
     if file_path.exists() {
@@ -67,6 +125,12 @@ pub fn create(path: &std::path::Path) -> Result<(), Error> {
         File::create(path.join(".todo.toml")).expect("File could not be created");
         Ok(())
     }
+}
+
+pub fn list(file_path: &std::path::Path, writer: &mut impl std::io::Write){
+    let file_content = fs::read_to_string(file_path).expect("Couldn't read file contents");
+    let task_list = file_content.parse::<TaskList>().unwrap();
+    write!(writer, "{}", task_list).expect(&format!("Error parsing file {}", file_path.display()));
 }
 
 pub fn add(file_path: &std::path::Path, text: &str) {
@@ -78,13 +142,12 @@ pub fn add(file_path: &std::path::Path, text: &str) {
 
 #[cfg(test)]
 mod test {
-    use crate::{add, create, Status, Task};
+    use crate::*;
     use assert_fs::fixture::TempDir;
     use assert_fs::fixture::{FileTouch, NamedTempFile};
     use std::fs::{read_to_string, File};
     use std::io::Write;
     use std::path::Path;
-
     #[test]
     fn test_create_function_creates_a_new_file() {
         let temp_dir = TempDir::new().unwrap();
@@ -198,4 +261,77 @@ mod test {
         temp_file.close().unwrap();
     }
 
+    #[test]
+    fn test_parse_and_display_a_list_of_tasks() {
+        let mut tasks = TaskList::new();
+        let task1 = Task{text: "Do this task first".to_string(), status: Status::Finished };
+        let task2 = Task{text: "Then do this task".to_string(), status: Status::Unfinished };
+        let task3 = Task{text: "Finally do this task".to_string(), status: Status::Unfinished };
+        tasks.add(task1);
+        tasks.add(task2);
+        tasks.add(task3);
+
+        assert_eq!(r"1 [ ] Then do this task
+2 [ ] Finally do this task
+
+3 [x] Do this task first
+",
+            tasks.to_string());
+    }
+
+    #[test]
+    fn test_task_list_finished() {
+        let mut tasks = TaskList::new();
+        let task1 = Task{text: "Do this task first".to_string(), status: Status::Finished };
+        let task2 = Task{text: "Then do this task".to_string(), status: Status::Unfinished };
+        tasks.add(task1.clone());
+        tasks.add(task2.clone());
+
+        assert_eq!(tasks.finished_tasks(), vec![task1]);
+    }
+
+    #[test]
+    fn test_is_finished() {
+        let task1 = Task{text: "Do this task first".to_string(), status: Status::Finished };
+        let task2 = Task{text: "Then do this task".to_string(), status: Status::Unfinished };
+
+        assert!(task1.is_finished());
+        assert!(!task2.is_finished());
+    }
+
+
+    #[test]
+    fn test_task_list_unfinished() {
+        let mut tasks = TaskList::new();
+        let task1 = Task{text: "Do this task first".to_string(), status: Status::Finished };
+        let task2 = Task{text: "Then do this task".to_string(), status: Status::Unfinished };
+        tasks.add(task1.clone());
+        tasks.add(task2.clone());
+
+        assert_eq!(tasks.unfinished_tasks(), vec![task2]);
+    }
+
+    #[test]
+    fn test_list_subcommand() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join(".todo");
+        std::fs::write(file_path.clone(), "[x] Already done\n[ ] Not done yet\n").unwrap();
+        let mut writer = Vec::<u8>::new();
+
+        list(&file_path, &mut writer);
+
+        assert_eq!("1 [ ] Not done yet\n\n2 [x] Already done\n", String::from_utf8(writer).unwrap());
+    }
+
+    #[test]
+    fn test_parse_task_list() {
+        let tasks = "[ ] Task 1\n[x] Task 2".parse::<TaskList>().unwrap();
+        let task1 = "[ ] Task 1".parse().unwrap();
+        let task2 = "[x] Task 2".parse().unwrap();
+        let mut expected_tasks = TaskList::new();
+        expected_tasks.add(task1);
+        expected_tasks.add(task2);
+        
+        assert_eq!(expected_tasks, tasks);
+    }
 }
