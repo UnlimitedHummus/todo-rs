@@ -126,14 +126,32 @@ impl TaskList {
             + "\n"
     }
 
-    fn check(&mut self, task_index: usize) -> Result<Task, crate::Error> {
+    fn check(&mut self, task_index: usize) -> Result<Task, Error> {
         let task = self
             .tasks
             .get_mut(task_index - 1)
-            .ok_or(crate::Error::IndexOutOfBounds)?;
+            .ok_or(Error::IndexOutOfBounds)?;
         // TODO: there is no test for the error case yet
         task.check();
         Ok(task.to_owned())
+    }
+
+    fn remove(&mut self, task_index: usize) -> Result<Task, Error> {
+        if task_index == 0 || task_index - 1 > self.tasks.len() {
+            Err(Error::IndexOutOfBounds)
+        } else {
+            let mut tasks = self.unfinished_tasks();
+            tasks.append(&mut self.finished_tasks());
+            let task_to_remove = tasks.get(task_index - 1).unwrap();
+            self.tasks = self
+                .tasks
+                .iter()
+                .filter(|task| &task_to_remove != task)
+                .map(|task| task.to_owned())
+                .collect();
+
+            Ok(task_to_remove.to_owned())
+        }
     }
 }
 
@@ -184,6 +202,15 @@ pub fn check(file_path: &std::path::Path, item_index: usize, writer: &mut impl s
     fs::write(file_path, task_list.to_string_unordered()).unwrap();
     writeln!(writer, "{}", checked_task).unwrap();
     // TODO: maybe use mark or toggle instead of check
+}
+
+pub fn remove(file_path: &std::path::Path, item_index: usize, writer: &mut impl std::io::Write) {
+    let file_content = fs::read_to_string(file_path).expect("Couldn't read file contents"); // TODO: make these two lines their own function
+    let mut task_list = file_content.parse::<TaskList>().unwrap();
+    let removed_task = task_list.remove(item_index).unwrap();
+    fs::write(file_path, task_list.to_string_unordered()).unwrap();
+    writeln!(writer, "Removed: {}", removed_task).unwrap();
+    // TODO: make a warning for trying to remove an Item with the wrong index
 }
 
 #[cfg(test)]
@@ -439,5 +466,63 @@ mod test {
         let mut tasks = "[ ] Task 1\n[x] Task 2".parse::<TaskList>().unwrap();
         let result = tasks.check(5);
         assert_eq!(Err(Error::IndexOutOfBounds), result);
+    }
+
+    #[test]
+    fn test_task_list_remove_item() {
+        let mut tasks = r"[x] Read a book from a series of books
+[x] Buy all of the books from the series
+[ ] Read all the books from the book series"
+            .parse::<TaskList>()
+            .unwrap();
+        let task2 = tasks.remove(3).unwrap();
+        assert_eq!(
+            Task {
+                text: "Buy all of the books from the series".to_string(),
+                status: Status::Finished
+            },
+            task2
+        );
+        assert_eq!(
+            vec![
+                Task {
+                    text: "Read a book from a series of books".to_string(),
+                    status: Status::Finished
+                },
+                Task {
+                    text: "Read all the books from the book series".to_string(),
+                    status: Status::Unfinished
+                }
+            ],
+            tasks.tasks
+        );
+
+        let task3 = tasks.remove(1).unwrap();
+        assert_eq!(
+            Task {
+                text: "Read all the books from the book series".to_string(),
+                status: Status::Unfinished
+            },
+            task3
+        );
+        assert_eq!(
+            vec![Task {
+                text: "Read a book from a series of books".to_string(),
+                status: Status::Finished
+            }],
+            tasks.tasks
+        );
+
+        assert_eq!(Err(Error::IndexOutOfBounds), tasks.remove(5));
+    }
+
+    #[test]
+    fn test_remove_takes_index_as_displayed_not_as_in_file() {
+        let mut tasks = "[x] Task2\n[ ] Task1".parse::<TaskList>().unwrap();
+
+        let task1 = tasks.remove(1).unwrap();
+
+        assert_eq!(task1, "[ ] Task1".parse::<Task>().unwrap());
+        assert_eq!("[x] Task2".parse::<TaskList>().unwrap(), tasks);
     }
 }

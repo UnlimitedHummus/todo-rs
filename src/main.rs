@@ -26,7 +26,13 @@ enum Commands {
     List,
     /// Mark an item on the list as done
     Check {
-        /// Number of the item to check as displayed by the list command
+        /// Index of the item to check
+        #[clap(value_parser)]
+        item_index: usize,
+    },
+    /// Remove an item from the list
+    Remove {
+        /// Index of the item to remove
         #[clap(value_parser)]
         item_index: usize,
     },
@@ -48,6 +54,9 @@ fn main() {
         }
         Commands::Check { item_index } => {
             check(Path::new(".todo.toml"), item_index, &mut std::io::stdout());
+        }
+        Commands::Remove { item_index } => {
+            remove(Path::new(".todo.toml"), item_index, &mut std::io::stdout());
         }
     }
 }

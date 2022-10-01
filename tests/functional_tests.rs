@@ -1,8 +1,8 @@
 use assert_cmd::Command;
-use predicates::prelude::*;
-use std::path::Path;
 use assert_fs::fixture::TempDir;
+use predicates::prelude::*;
 use std::env;
+use std::path::Path;
 
 #[test]
 fn test_program_fails_when_no_arguments_are_passed() {
@@ -47,18 +47,16 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("1"))
         .stdout(predicate::str::contains("[ ] Refactor code"));
-    
-    
+
     // Mark accidentally runs the create command again
     // The program tells him, that there already is a .todo.toml file present
     // Mark runs todo list again to make sure, that all of his items are still
     // there
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
     cmd.arg("create");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Warning: \".todo.toml\" already exists. Quitting"));
-
+    cmd.assert().success().stdout(predicate::str::contains(
+        "Warning: \".todo.toml\" already exists. Quitting",
+    ));
 
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
     cmd.arg("list");
@@ -70,8 +68,7 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
     // He wants to also add a second item to his todo list "Drink a coffe
     // with Greg"
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
-    cmd.arg("add")
-        .arg("Drink a coffee with Greg");
+    cmd.arg("add").arg("Drink a coffee with Greg");
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Added: Drink a coffee with Greg"));
@@ -85,7 +82,6 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("1 [ ] Refactor code"))
         .stdout(predicate::str::contains("2 [ ] Drink a coffee with Greg"));
-
 
     // Mark completes his refacoring and checks of the item on the todo list
     // with `todo check 1`
@@ -108,9 +104,9 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
     // Drinking coffee with Greg is now item number 1
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
     cmd.arg("list");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("1 [ ] Drink a coffee with Greg\n\n2 [x] Refactor code"));
+    cmd.assert().success().stdout(predicate::str::contains(
+        "1 [ ] Drink a coffee with Greg\n\n2 [x] Refactor code",
+    ));
 
     // Mark notices, that having a coffe meetup in his project's todo list
     // is a bit inappropriate, when after all he wants to show his boss this
@@ -118,9 +114,9 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
     // He decides to remove it from the list (`todo remove 1`)
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
     cmd.arg("remove").arg("1");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Removed: [x] Drink a coffe with Greg"));
+    cmd.assert().success().stdout(predicate::str::contains(
+        "Removed: [ ] Drink a coffee with Greg",
+    ));
 
     // The todo list doesn't list the item anymore
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
