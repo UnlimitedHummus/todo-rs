@@ -45,8 +45,9 @@ impl Task {
         }
     }
 
-    fn check(&mut self) {
+    fn check(&mut self) -> Task {
         self.status = Status::Finished;
+        self.clone()
     }
 }
 
@@ -127,13 +128,21 @@ impl TaskList {
     }
 
     fn check(&mut self, task_index: usize) -> Result<Task, Error> {
-        let task = self
-            .tasks
-            .get_mut(task_index - 1)
-            .ok_or(Error::IndexOutOfBounds)?;
-        // TODO: there is no test for the error case yet
-        task.check();
-        Ok(task.to_owned())
+        if task_index == 0 || task_index - 1 > self.tasks.len() {
+            Err(Error::IndexOutOfBounds)
+        } else {
+            let mut tasks = self.unfinished_tasks();
+            tasks.append(&mut self.finished_tasks());
+            let task_to_check = tasks.get(task_index - 1).unwrap();
+            let task = self.tasks.iter_mut().find_map(|task| {
+                if task == task_to_check {
+                    Some(task.check())
+                } else {
+                    None
+                }
+            });
+            Ok(task.unwrap())
+        }
     }
 
     fn remove(&mut self, task_index: usize) -> Result<Task, Error> {
@@ -172,11 +181,11 @@ impl fmt::Display for TaskList {
 }
 
 pub fn create(path: &std::path::Path) -> Result<(), Error> {
-    let file_path = path.join(".todo.toml");
+    let file_path = path.join(".todo");
     if file_path.exists() {
         Err(Error::FileExists)
     } else {
-        File::create(path.join(".todo.toml")).expect("File could not be created");
+        File::create(path.join(".todo")).expect("File could not be created");
         Ok(())
     }
 }
@@ -188,11 +197,19 @@ pub fn list(file_path: &std::path::Path, writer: &mut impl std::io::Write) {
         .unwrap_or_else(|_| panic!("Error parsing file {}", file_path.display()));
 }
 
-pub fn add(file_path: &std::path::Path, text: &str) {
-    let mut file = OpenOptions::new().append(true).open(file_path).unwrap();
-    file.write_all(b"[ ] ").unwrap();
-    file.write_all(text.as_bytes()).unwrap();
-    file.write_all(b"\n").unwrap();
+pub fn add(file_path: &std::path::Path, text: &str, error_writer: &mut impl std::io::Write) {
+    match OpenOptions::new().append(true).open(file_path) {
+        Ok(mut file) => {
+            file.write_all(b"[ ] ").unwrap();
+            file.write_all(text.as_bytes()).unwrap();
+            file.write_all(b"\n").unwrap();
+            println!("Added: {}", text);
+        }
+        Err(_) => {
+            writeln!(error_writer, "Error: There is no list in this directory").unwrap();
+            std::process::exit(1);
+        }
+    }
 }
 
 pub fn check(file_path: &std::path::Path, item_index: usize, writer: &mut impl std::io::Write) {
@@ -227,7 +244,7 @@ mod test {
 
         create(temp_dir.path()).unwrap();
 
-        assert!(temp_dir.path().join(Path::new(".todo.toml")).exists());
+        assert!(temp_dir.path().join(Path::new(".todo")).exists());
 
         temp_dir.close().unwrap();
     }
@@ -235,7 +252,7 @@ mod test {
     #[test]
     fn test_create_function_doesnt_overwrite_existing_file() {
         let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join(".todo.toml");
+        let file_path = temp_dir.path().join(".todo");
         {
             let mut file = File::create(file_path.clone()).unwrap();
             file.write(b"foo").unwrap();
@@ -302,11 +319,11 @@ mod test {
 
     #[test]
     fn test_add_writes_to_file() {
-        let temp_file = NamedTempFile::new(".todo.toml").unwrap();
+        let temp_file = NamedTempFile::new(".todo").unwrap();
         let text = "New todo entry".to_string();
         temp_file.touch().unwrap();
 
-        add(temp_file.path(), &text);
+        add(temp_file.path(), &text, &mut std::io::stderr());
 
         assert_eq!(
             read_to_string(temp_file.path()).unwrap(),
@@ -317,7 +334,7 @@ mod test {
 
     #[test]
     fn test_add_appends_text_to_file() {
-        let temp_file = NamedTempFile::new(".todo.toml").unwrap();
+        let temp_file = NamedTempFile::new(".todo").unwrap();
         let text = "New todo entry".to_string();
         temp_file.touch().unwrap();
         {
@@ -325,7 +342,7 @@ mod test {
             f.write(b"[x] Old todo entry\n").unwrap();
         }
 
-        add(temp_file.path(), &text);
+        add(temp_file.path(), &text, &mut std::io::stderr());
 
         assert_eq!(
             read_to_string(temp_file.path()).unwrap(),
@@ -460,6 +477,21 @@ mod test {
         );
     }
     // TODO: make unmarking also possible
+
+    #[test]
+    fn test_check_indexes_correctly() {
+        let mut tasks = "[x] Task 2\n[ ] Task 1".parse::<TaskList>().unwrap();
+
+        let checked_task = tasks.check(1).unwrap();
+        assert_eq!("[x] Task 2\n[x] Task 1\n", tasks.to_string_unordered());
+        assert_eq!(
+            Task {
+                text: "Task 1".to_string(),
+                status: Status::Finished
+            },
+            checked_task
+        );
+    }
 
     #[test]
     fn test_check_returns_out_of_bounds_error() {

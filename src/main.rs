@@ -42,21 +42,20 @@ fn main() {
     let args = Args::parse();
     match args.command {
         Commands::Create => match create(Path::new(".")) {
-            Ok(_) => println!("created a new .todo.toml file"),
-            Err(_) => println!("Warning: \".todo.toml\" already exists. Quitting"),
+            Ok(_) => println!("created a new .todo file"),
+            Err(_) => println!("Warning: \".todo\" already exists. Quitting"),
         },
         Commands::Add { text } => {
-            add(Path::new(".todo.toml"), &text);
-            println!("Added: {}", text);
+            add(Path::new(".todo"), &text, &mut std::io::stderr());
         }
         Commands::List => {
-            list(Path::new(".todo.toml"), &mut std::io::stdout());
+            list(Path::new(".todo"), &mut std::io::stdout());
         }
         Commands::Check { item_index } => {
-            check(Path::new(".todo.toml"), item_index, &mut std::io::stdout());
+            check(Path::new(".todo"), item_index, &mut std::io::stdout());
         }
         Commands::Remove { item_index } => {
-            remove(Path::new(".todo.toml"), item_index, &mut std::io::stdout());
+            remove(Path::new(".todo"), item_index, &mut std::io::stdout());
         }
     }
 }

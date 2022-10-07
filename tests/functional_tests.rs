@@ -2,6 +2,7 @@ use assert_cmd::Command;
 use assert_fs::fixture::TempDir;
 use predicates::prelude::*;
 use std::env;
+use std::fs::DirBuilder;
 use std::path::Path;
 
 #[test]
@@ -21,15 +22,27 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
     // // change to a blank directory to have no side effects
     let temp_dir = TempDir::new().unwrap();
     env::set_current_dir(temp_dir.path()).unwrap();
+
+    // Mark wants to add an item to the todo list, but he hasn't created a list yet
+    // the program fails and explains, that no todo list could be found
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("add")
+        .arg("Test item")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "Error: There is no list in this directory",
+        ));
+
     // Mark wants to create a new todo list in the current folder
     // He runs `todo create` to make a new todo list in the current folder
-    // This creates a .todo.toml file in the current folder
+    // This creates a .todo file in the current folder
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
     cmd.arg("create");
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("created a new .todo.toml file"));
-    assert!(Path::new(".todo.toml").exists());
+        .stdout(predicate::str::contains("created a new .todo file"));
+    assert!(Path::new(".todo").exists());
 
     // Mark uses the todo program to manage tasks for his project.
     // By running todo add "Refactor code" he adds an item to the todo list
@@ -49,13 +62,13 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("[ ] Refactor code"));
 
     // Mark accidentally runs the create command again
-    // The program tells him, that there already is a .todo.toml file present
+    // The program tells him, that there already is a .todo file present
     // Mark runs todo list again to make sure, that all of his items are still
     // there
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
     cmd.arg("create");
     cmd.assert().success().stdout(predicate::str::contains(
-        "Warning: \".todo.toml\" already exists. Quitting",
+        "Warning: \".todo\" already exists. Quitting",
     ));
 
     let mut cmd = Command::cargo_bin("todo-rs").unwrap();
@@ -127,7 +140,7 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
 
     // He decides, that he doesn't want the todo list after all.
     // Mark runs `todo destroy` and all list items are deleted along with the
-    // .todo.toml file
+    // .todo file
     Err(Box::<dyn std::error::Error>::from(
         "Finish the test!".to_string(),
     ))
