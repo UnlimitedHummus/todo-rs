@@ -38,26 +38,31 @@ enum Commands {
     },
 }
 
-fn main() {
-    let args = Args::parse();
-    // TODO: replace with something like args.command.execute()
-    // where execute is implemented for the commands enum
-    match args.command {
-        Commands::Create => match create(Path::new(".")) {
-            Ok(_) => println!("created a new .todo file"),
-            Err(_) => println!("Warning: \".todo\" already exists. Quitting"),
-        },
-        Commands::Add { text } => {
-            add(Path::new(".todo"), &text, &mut std::io::stderr());
-        }
-        Commands::List => {
-            list(Path::new(".todo"), &mut std::io::stdout());
-        }
-        Commands::Check { item_index } => {
-            check(Path::new(".todo"), item_index, &mut std::io::stdout());
-        }
-        Commands::Remove { item_index } => {
-            remove(Path::new(".todo"), item_index, &mut std::io::stdout());
+impl Commands {
+    pub fn execute(self) { // TODO: add a Result as return value
+        match self {
+            Commands::Create => match create(Path::new(".")) {
+                Ok(_) => println!("created a new .todo file"),
+                Err(_) => println!("Warning: \".todo\" already exists. Quitting"),
+            },
+            Commands::Add { text } => {
+                add(Path::new(".todo"), &text, &mut std::io::stderr());
+            }
+            Commands::List => {
+                list(Path::new(".todo"), &mut std::io::stdout());
+            }
+            Commands::Check { item_index } => {
+                check(Path::new(".todo"), item_index, &mut std::io::stdout());
+            }
+            Commands::Remove { item_index } => {
+                remove(Path::new(".todo"), item_index, &mut std::io::stdout());
+            }
         }
     }
+}
+
+
+fn main() {
+    let args = Args::parse();
+    args.command.execute();
 }
