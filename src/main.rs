@@ -40,6 +40,8 @@ enum Commands {
 
 fn main() {
     let args = Args::parse();
+    // TODO: replace with something like args.command.execute()
+    // where execute is implemented for the commands enum
     match args.command {
         Commands::Create => match create(Path::new(".")) {
             Ok(_) => println!("created a new .todo file"),
