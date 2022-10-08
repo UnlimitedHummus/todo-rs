@@ -2,7 +2,6 @@ use assert_cmd::Command;
 use assert_fs::fixture::TempDir;
 use predicates::prelude::*;
 use std::env;
-use std::fs::DirBuilder;
 use std::path::Path;
 
 #[test]
