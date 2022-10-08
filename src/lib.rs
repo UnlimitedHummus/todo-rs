@@ -230,6 +230,11 @@ pub fn remove(file_path: &std::path::Path, item_index: usize, writer: &mut impl 
     // TODO: make a warning for trying to remove an Item with the wrong index
 }
 
+pub fn destroy(file_path: &std::path::Path, writer: &mut impl std::io::Write) {
+    std::fs::remove_file(file_path).unwrap();
+    writeln!(writer, "Deleted: .todo").unwrap();
+}
+
 #[cfg(test)]
 mod test {
     use crate::*;

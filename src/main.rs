@@ -36,6 +36,8 @@ enum Commands {
         #[clap(value_parser)]
         item_index: usize,
     },
+    /// destroy the todo list
+    Destroy
 }
 
 impl Commands {
@@ -56,6 +58,9 @@ impl Commands {
             }
             Commands::Remove { item_index } => {
                 remove(Path::new(".todo"), item_index, &mut std::io::stdout());
+            }
+            Commands::Destroy => {
+                destroy(Path::new(".todo"), &mut std::io::stdout());
             }
         }
     }

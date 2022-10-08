@@ -141,8 +141,13 @@ fn test_managing_list_items() -> Result<(), Box<dyn std::error::Error>> {
     // He decides, that he doesn't want the todo list after all.
     // Mark runs `todo destroy` and all list items are deleted along with the
     // .todo file
-    Err(Box::<dyn std::error::Error>::from(
-        "Finish the test!".to_string(),
-    ))
-    // Ok(())
+    let mut cmd = Command::cargo_bin("todo-rs").unwrap();
+    cmd.arg("destroy");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Deleted: .todo"));
+
+    assert!(!Path::new(".todo").exists());
+    
+    Ok(())
 }
