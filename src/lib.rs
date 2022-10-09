@@ -1,8 +1,131 @@
+use crate::task::Task;
 use std::fmt;
 use std::result::Result;
 use std::str::FromStr;
 
 pub mod command;
+mod task {
+    use super::ParseError;
+    use crate::Status;
+    use std::fmt;
+    use std::str::FromStr;
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct Task {
+        pub text: String,
+        pub status: Status,
+    }
+    impl fmt::Display for Task {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{} {}", self.status, self.text)
+        }
+    }
+
+    impl Task {
+        pub fn is_finished(&self) -> bool {
+            match self.status {
+                Status::Finished => true,
+                Status::Unfinished => false,
+            }
+        }
+
+        pub fn check(&mut self) -> Task {
+            self.status = Status::Finished;
+            self.clone()
+        }
+    }
+    impl FromStr for Task {
+        type Err = ParseError;
+
+        fn from_str(input: &str) -> Result<Self, <Self as FromStr>::Err> {
+            let status = match &input[0..3] {
+                "[ ]" => Status::Unfinished,
+                "[x]" => Status::Finished,
+                _ => return Err(ParseError),
+            };
+            let text = &input[4..input.len()];
+
+            Ok(Task {
+                text: text.to_string(),
+                status,
+            })
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use crate::Status;
+        use crate::Task;
+
+        #[test]
+        fn test_is_finished() {
+            let task1 = Task {
+                text: "Do this task first".to_string(),
+                status: Status::Finished,
+            };
+            let task2 = Task {
+                text: "Then do this task".to_string(),
+                status: Status::Unfinished,
+            };
+
+            assert!(task1.is_finished());
+            assert!(!task2.is_finished());
+        }
+
+        #[test]
+        fn test_parse_unfinished_task() {
+            let task = "[ ] Make things work"
+                .parse::<Task>()
+                .expect("parsing failed");
+
+            assert_eq!(
+                Task {
+                    text: "Make things work".to_string(),
+                    status: Status::Unfinished
+                },
+                task
+            );
+        }
+
+        #[test]
+        fn test_parse_finished_task() {
+            let task = "[x] Nothing special"
+                .parse::<Task>()
+                .expect("parsing failed");
+
+            assert_eq!(
+                Task {
+                    text: "Nothing special".to_string(),
+                    status: Status::Finished
+                },
+                task
+            );
+        }
+
+        #[test]
+        fn test_finished_task_to_string() {
+            let task = Task {
+                text: "Get coffee".to_string(),
+                status: Status::Finished,
+            };
+
+            assert_eq!("[x] Get coffee", task.to_string());
+        }
+
+        #[test]
+        fn test_unfinished_task_to_string() {
+            let task = Task {
+                text: "Get coffee".to_string(),
+                status: Status::Unfinished,
+            };
+
+            assert_eq!("[ ] Get coffee", task.to_string());
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ParseError;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -10,14 +133,8 @@ pub enum Error {
     IndexOutOfBounds,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-struct Task {
-    text: String,
-    status: Status,
-}
-
 #[derive(PartialEq, Debug, Clone)]
-enum Status {
+pub enum Status {
     Unfinished,
     Finished,
 }
@@ -29,47 +146,6 @@ impl fmt::Display for Status {
             Status::Finished => "[x]",
         };
         write!(f, "{}", representation)
-    }
-}
-
-#[derive(Debug)]
-struct ParseError;
-
-impl Task {
-    fn is_finished(&self) -> bool {
-        match self.status {
-            Status::Finished => true,
-            Status::Unfinished => false,
-        }
-    }
-
-    fn check(&mut self) -> Task {
-        self.status = Status::Finished;
-        self.clone()
-    }
-}
-
-impl FromStr for Task {
-    type Err = ParseError;
-
-    fn from_str(input: &str) -> Result<Self, <Self as FromStr>::Err> {
-        let status = match &input[0..3] {
-            "[ ]" => Status::Unfinished,
-            "[x]" => Status::Finished,
-            _ => return Err(ParseError),
-        };
-        let text = &input[4..input.len()];
-
-        Ok(Task {
-            text: text.to_string(),
-            status,
-        })
-    }
-}
-
-impl fmt::Display for Task {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.status, self.text)
     }
 }
 
@@ -183,56 +259,6 @@ impl fmt::Display for TaskList {
 mod test {
     use crate::*;
     #[test]
-    fn test_parse_unfinished_task() {
-        let task = "[ ] Make things work"
-            .parse::<Task>()
-            .expect("parsing failed");
-
-        assert_eq!(
-            Task {
-                text: "Make things work".to_string(),
-                status: Status::Unfinished
-            },
-            task
-        );
-    }
-
-    #[test]
-    fn test_parse_finished_task() {
-        let task = "[x] Nothing special"
-            .parse::<Task>()
-            .expect("parsing failed");
-
-        assert_eq!(
-            Task {
-                text: "Nothing special".to_string(),
-                status: Status::Finished
-            },
-            task
-        );
-    }
-
-    #[test]
-    fn test_finished_task_to_string() {
-        let task = Task {
-            text: "Get coffee".to_string(),
-            status: Status::Finished,
-        };
-
-        assert_eq!("[x] Get coffee", task.to_string());
-    }
-
-    #[test]
-    fn test_unfinished_task_to_string() {
-        let task = Task {
-            text: "Get coffee".to_string(),
-            status: Status::Unfinished,
-        };
-
-        assert_eq!("[ ] Get coffee", task.to_string());
-    }
-
-    #[test]
     fn test_parse_and_display_a_list_of_tasks() {
         let mut tasks = TaskList::new();
         let task1 = Task {
@@ -276,21 +302,6 @@ mod test {
         tasks.add(task2.clone());
 
         assert_eq!(tasks.finished_tasks(), vec![task1]);
-    }
-
-    #[test]
-    fn test_is_finished() {
-        let task1 = Task {
-            text: "Do this task first".to_string(),
-            status: Status::Finished,
-        };
-        let task2 = Task {
-            text: "Then do this task".to_string(),
-            status: Status::Unfinished,
-        };
-
-        assert!(task1.is_finished());
-        assert!(!task2.is_finished());
     }
 
     #[test]
