@@ -1,4 +1,3 @@
-
 use clap::Parser;
 use clap::Subcommand;
 use std::path::Path;
@@ -8,7 +7,6 @@ use todo_rs::command::*;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 pub struct Args {
-    /// create a new list
     #[clap(subcommand)]
     command: Commands,
 }
@@ -21,11 +19,11 @@ impl Args {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// creates a new todo list
+    /// Create a new todo list
     Create,
     /// Add an item to the todo list
     Add {
-        /// text of todo list item
+        /// Text of the new item
         #[clap(value_parser)]
         text: String,
     },
@@ -43,7 +41,7 @@ enum Commands {
         #[clap(value_parser)]
         item_index: usize,
     },
-    /// destroy the todo list
+    /// Destroy the todo list
     Destroy,
 }
 
