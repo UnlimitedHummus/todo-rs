@@ -1,7 +1,7 @@
 use clap::Parser;
 use clap::Subcommand;
 use std::path::Path;
-use todo_rs::*;
+use todo_rs::command::*;
 
 /// Simple todo lists
 #[derive(Parser, Debug)]
