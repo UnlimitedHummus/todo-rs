@@ -5,6 +5,10 @@ edition = "2021"
 authors = ["Magnus Balzer <magnus.balzer@gmail.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "todo"
+path = "src/main.rs"
+
 
 [dependencies]
 clap = { version = "3.2.22", features = ["derive"] }
