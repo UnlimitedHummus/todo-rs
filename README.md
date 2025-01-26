@@ -44,7 +44,7 @@ I feel like the usafe becomes pretty self explanatory from here.
 Removed: [ ] My second todo 
 > todo list
 
-2 [ ] My first todo
+1 [ ] My first todo
 ```
 
 To remove the `.todo` file, simply run `todo destroy` or simply delete the .todo file.
